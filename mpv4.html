@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Sorting Algorithm Visualization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            padding: 1rem 0;
+        }
+
+        main {
+            padding: 2rem;
+        }
+
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        #controls label {
+            margin-right: 0.5rem;
+        }
+
+        #controls input[type="text"] {
+            padding: 0.5rem;
+            width: 200px;
+        }
+
+        #controls select {
+            padding: 0.5rem;
+        }
+
+        #controls button {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+
+        #visualization-container {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            flex-wrap: nowrap;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 1rem;
+            min-height: 400px;
+            gap: 10px;
+            position: relative;
+        }
+
+        .box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            background-color: #007bff;
+            color: #fff;
+            font-size: 1.2rem;
+            border-radius: 5px;
+            transition: transform 0.5s, background-color 0.5s;
+            position: absolute;
+        }
+
+        .box.active {
+            background-color: #e74c3c;
+        }
+
+        .box.sorted {
+            background-color: #2ecc71;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Animated Sorting Algorithm Visualization</h1>
+    </header>
+    <main>
+        <div id="controls">
+            <label for="array-input">Enter numbers (comma separated):</label>
+            <input type="text" id="array-input" placeholder="e.g., 5,3,8,4,2">
+            <button id="generate-btn">Generate Array</button>
+            
+            <label for="algorithm-select">Choose Algorithm:</label>
+            <select id="algorithm-select">
+                <option value="bubble-sort">Bubble Sort</option>
+                <option value="selection-sort">Selection Sort</option>
+                <option value="insertion-sort">Insertion Sort</option>
+                <option value="quick-sort">Quick Sort</option>
+                <option value="merge-sort">Merge Sort</option>
+            </select>
+            <button id="start-btn">Start Visualization</button>
+        </div>
+        <div id="visualization-container">
+            <!-- Visualization will be rendered here -->
+        </div>
+    </main>
+    <script>
+        const generateBtn = document.getElementById('generate-btn');
+        const startBtn = document.getElementById('start-btn');
+        const algorithmSelect = document.getElementById('algorithm-select');
+        const visualizationContainer = document.getElementById('visualization-container');
+        const arrayInput = document.getElementById('array-input');
+
+        let array = [];
+        let boxes = [];
+        let speed = 500; // milliseconds
+
+        generateBtn.addEventListener('click', generateArray);
+        startBtn.addEventListener('click', startVisualization);
+
+        function generateArray() {
+            const input = arrayInput.value.trim();
+            if (input === '') {
+                alert('Please enter a comma-separated list of numbers.');
+                return;
+            }
+            const inputArray = input.split(',').map(num => parseInt(num.trim()));
+            if (inputArray.some(isNaN)) {
+                alert('Please ensure all inputs are valid numbers.');
+                return;
+            }
+            array = inputArray;
+            renderArray();
+        }
+
+        function renderArray() {
+            visualizationContainer.innerHTML = '';
+            boxes = array.map((value, index) => createBox(value, index));
+            boxes.forEach(box => visualizationContainer.appendChild(box));
+        }
+
+        function createBox(value, index) {
+            const box = document.createElement('div');
+            box.classList.add('box');
+            box.textContent = value;
+            box.style.left = `${index * 60}px`; // Set the initial position
+            return box;
+        }
+
+        function updateBoxPositions() {
+            boxes.forEach((box, index) => {
+                box.style.left = `${index * 60}px`;
+            });
+        }
+
+        function startVisualization() {
+            const algorithm = algorithmSelect.value;
+            disableControls();
+            switch (algorithm) {
+                case 'bubble-sort':
+                    bubbleSort();
+                    break;
+                case 'selection-sort':
+                    selectionSort();
+                    break;
+                case 'insertion-sort':
+                    insertionSort();
+                    break;
+                case 'quick-sort':
+                    quickSort(0, array.length - 1).then(() => enableControls());
+                    break;
+                case 'merge-sort':
+                    mergeSort(array.slice(), 0, array.length - 1).then(sorted => {
+                        array = sorted;
+                        renderArray();
+                        enableControls();
+                    });
+                    break;
+                default:
+                    alert('Algorithm not implemented yet.');
+                    enableControls();
+            }
+        }
+
+        function disableControls() {
+            generateBtn.disabled = true;
+            startBtn.disabled = true;
+            algorithmSelect.disabled = true;
+            arrayInput.disabled = true;
+        }
+
+        function enableControls() {
+            generateBtn.disabled = false;
+            startBtn.disabled = false;
+            algorithmSelect.disabled = false;
+            arrayInput.disabled = false;
+        }
+
+        // Sorting Algorithms
+
+        // 1. Bubble Sort
+        async function bubbleSort() {
+            for (let i = 0; i < array.length; i++) {
+                for (let j = 0; j < array.length - i - 1; j++) {
+                    highlightBoxes(j, j + 1);
+                    if (array[j] > array[j + 1]) {
+                        await swap(j, j + 1);
+                    }
+                    await sleep(speed);
+                    unhighlightBoxes(j, j + 1);
+                }
+                markSorted(array.length - i - 1);
+            }
+            enableControls();
+        }
+
+        function highlightBoxes(index1, index2) {
+            boxes[index1].classList.add('active');
+            boxes[index2].classList.add('active');
+        }
+
+        function unhighlightBoxes(index1, index2) {
+            boxes[index1].classList.remove('active');
+            boxes[index2].classList.remove('active');
+        }
+
+        function markSorted(index) {
+            boxes[index].classList.add('sorted');
+        }
+
+        async function swap(i, j) {
+            [array[i], array[j]] = [array[j], array[i]];
+            [boxes[i], boxes[j]] = [boxes[j], boxes[i]];
+            updateBoxPositions();
+            await sleep(speed);
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // 2. Selection Sort
+        async function selectionSort() {
+            for (let i = 0; i < array.length; i++) {
+                let minIndex = i;
+                highlightBoxes(i, minIndex);
+                for (let j = i + 1; j < array.length; j++) {
+                    highlightBoxes(j, minIndex);
+                    if (array[j] < array[minIndex]) {
+                        minIndex = j;
+                        unhighlightBoxes(i, j);
+                        highlightBoxes(i, minIndex);
+                    }
+                    await sleep(speed);
+                    unhighlightBoxes(j, minIndex);
+                }
+                if (minIndex !== i) {
+                    await swap(i, minIndex);
+                }
+                markSorted(i);
+                unhighlightBoxes(i, minIndex);
+            }
+            enableControls();
+        }
+
+        // 3. Insertion Sort
+        async function insertionSort() {
+            for (let i = 1; i < array.length; i++) {
+                let key = array[i];
+                let j = i - 1;
+                highlightBoxes(i, j);
+                await sleep(speed);
+                while (j >= 0 && array[j] > key) {
+                    array[j + 1] = array[j];
+                    boxes[j + 1].textContent = array[j];
+                    markSorted(j + 1);
+                    j--;
+                    if (j >= 0) {
+                        highlightBoxes(j, j + 1);
+                        await sleep(speed);
+                        unhighlightBoxes(j + 1, j + 2);
+                    }
+                }
+                array[j + 1] = key;
+                boxes[j + 1].textContent = key;
+                unhighlightBoxes(j + 1, j + 2);
+            }
+            for (let i = 0; i < array.length; i++) {
+                markSorted(i);
+            }
+            enableControls();
+        }
+
+        // 4. Quick Sort
+        async function quickSort(start, end) {
+            if (start >= end) {
+                if (start >= 0 && start < array.length) {
+                    markSorted(start);
+                }
+                return;
+            }
+
+            const pivotIndex = await partition(start, end);
+            await Promise.all([
+                quickSort(start, pivotIndex - 1),
+                quickSort(pivotIndex + 1, end)
+            ]);
+
+            if (start === 0 && end === array.length - 1) {
+                enableControls();
+            }
+        }
+
+        async function partition(start, end) {
+            const pivotValue = array[end];
+            let pivotIndex = start;
+            for (let i = start; i < end; i++) {
+                highlightBoxes(i, end);
+                if (array[i] < pivotValue) {
+                    await swap(i, pivotIndex);
+                    pivotIndex++;
+                }
+                await sleep(speed);
+                unhighlightBoxes(i, end);
+            }
+            await swap(pivotIndex, end);
+            markSorted(pivotIndex);
+            return pivotIndex;
+        }
+
+        // 5. Merge Sort
+        async function mergeSort(arr, left, right) {
+            if (left >= right) return;
+
+            const mid = Math.floor((left + right) / 2);
+            await mergeSort(arr, left, mid);
+            await mergeSort(arr, mid + 1, right);
+            await merge(arr, left, mid, right);
+        }
+
+        async function merge(arr, left, mid, right) {
+            let n1 = mid - left + 1;
+            let n2 = right - mid;
+
+            let L = new Array(n1);
+            let R = new Array(n2);
+
+            for (let i = 0; i < n1; i++)
+                L[i] = arr[left + i];
+            for (let j = 0; j < n2; j++)
+                R[j] = arr[mid + 1 + j];
+
+            let i = 0, j = 0, k = left;
+
+            while (i < n1 && j < n2) {
+                if (L[i] <= R[j]) {
+                    arr[k] = L[i];
+                    boxes[k].textContent = L[i];
+                    i++;
+                } else {
+                    arr[k] = R[j];
+                    boxes[k].textContent = R[j];
+                    j++;
+                }
+                highlightBoxes(k, k);
+                await sleep(speed);
+                unhighlightBoxes(k, k);
+                k++;
+            }
+
+            while (i < n1) {
+                arr[k] = L[i];
+                boxes[k].textContent = L[i];
+                highlightBoxes(k, k);
+                await sleep(speed);
+                unhighlightBoxes(k, k);
+                i++;
+                k++;
+            }
+
+            while (j < n2) {
+                arr[k] = R[j];
+                boxes[k].textContent = R[j];
+                highlightBoxes(k, k);
+                await sleep(speed);
+                unhighlightBoxes(k, k);
+                j++;
+                k++;
+            }
+
+            for (let idx = left; idx <= right; idx++) {
+                markSorted(idx);
+            }
+        }
+    </script>
+</body>
+</html>
