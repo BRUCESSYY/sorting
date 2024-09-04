@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DFS Traversal Visualization</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: #2c3e50;
+            font-family: Arial, sans-serif;
+            color: #ecf0f1;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        #graphContainer {
+            position: relative;
+            width: 80%;
+            height: 60%;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #34495e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .node {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #3498db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ecf0f1;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.3s;
+        }
+        .node.visited {
+            background: #e74c3c;
+            transform: scale(1.2);
+        }
+        .edge {
+            position: absolute;
+            width: 2px;
+            background: #ecf0f1;
+            transform-origin: top left;
+            transition: background 0.3s, transform 0.3s;
+        }
+        .edge.revisited {
+            background: #f39c12;
+        }
+        #controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #controls input, #controls button {
+            margin: 5px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        #controls button {
+            background: #3498db;
+            border: none;
+            border-radius: 5px;
+            color: #ecf0f1;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        #controls button:hover {
+            background: #2980b9;
+        }
+        #output {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>DFS Traversal Visualization</h1>
+    <div id="graphContainer"></div>
+    <div id="controls">
+        <input type="text" id="nodeValues" placeholder="Enter node values (e.g., A,B,C)">
+        <input type="text" id="connections" placeholder="Connections (e.g., A-B,B-C)">
+        <button onclick="createGraph()">Create Graph</button>
+        <button onclick="startDFS()">Start DFS</button>
+    </div>
+    <div id="output"></div>
+
+    <script>
+        const container = document.getElementById('graphContainer');
+        const output = document.getElementById('output');
+        let graph = {};
+        let visited = {};
+        let nodes = [];
+        let edges = [];
+
+        function createGraph() {
+            container.innerHTML = '';
+            output.innerHTML = '';
+            nodes = [];
+            edges = [];
+            graph = {};
+            visited = {};
+
+            const nodeValues = document.getElementById('nodeValues').value.split(',').map(val => val.trim());
+            const connections = document.getElementById('connections').value.split(',').map(conn => conn.trim().split('-').map(val => val.trim()));
+
+            const levels = calculateLevels(nodeValues, connections);
+            const maxLevel = levels.length - 1;
+            const spacingX = container.clientWidth / (maxLevel + 2);
+            const spacingY = container.clientHeight / (maxLevel + 2);
+
+            levels.forEach((level, depth) => {
+                const y = (depth + 1) * spacingY;
+                const centerX = container.clientWidth / 2;
+                const offsetX = (level.length - 1) * spacingX / 2;
+
+                level.forEach((nodeValue, index) => {
+                    const x = centerX - offsetX + index * spacingX;
+                    createNode(nodeValue, x, y);
+                });
+            });
+
+            connections.forEach(([a, b]) => {
+                graph[a] = graph[a] || [];
+                graph[b] = graph[b] || [];
+                graph[a].push(b);
+                graph[b].push(a);
+
+                const edge = createEdge(a, b);
+                container.appendChild(edge);
+                edges.push(edge);
+            });
+        }
+
+        function calculateLevels(nodeValues, connections) {
+            let levels = [[nodeValues[0]]];
+            let usedNodes = new Set(levels[0]);
+
+            connections.forEach(([a, b]) => {
+                if (usedNodes.has(a) && !usedNodes.has(b)) {
+                    addNodeToLevel(levels, a, b);
+                    usedNodes.add(b);
+                } else if (usedNodes.has(b) && !usedNodes.has(a)) {
+                    addNodeToLevel(levels, b, a);
+                    usedNodes.add(a);
+                }
+            });
+
+            nodeValues.forEach(node => {
+                if (!usedNodes.has(node)) {
+                    levels.push([node]);
+                    usedNodes.add(node);
+                }
+            });
+
+            return levels;
+        }
+
+        function addNodeToLevel(levels, parent, child) {
+            const parentLevel = levels.find(level => level.includes(parent));
+            const parentIndex = levels.indexOf(parentLevel);
+            if (!levels[parentIndex + 1]) {
+                levels.push([]);
+            }
+            levels[parentIndex + 1].push(child);
+        }
+
+        function createNode(value, x, y) {
+            const node = document.createElement('div');
+            node.className = 'node';
+            node.style.left = `${x}px`;
+            node.style.top = `${y}px`;
+            node.textContent = value;
+            node.dataset.id = value;
+            container.appendChild(node);
+            nodes.push(node);
+            visited[value] = false;
+        }
+
+        function createEdge(a, b) {
+            const node1 = nodes.find(node => node.dataset.id === a);
+            const node2 = nodes.find(node => node.dataset.id === b);
+
+            const x1 = node1.offsetLeft + node1.clientWidth / 2;
+            const y1 = node1.offsetTop + node1.clientHeight / 2;
+            const x2 = node2.offsetLeft + node2.clientWidth / 2;
+            const y2 = node2.offsetTop + node2.clientHeight / 2;
+
+            const length = Math.hypot(x2 - x1, y2 - y1);
+            const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+
+            const edge = document.createElement('div');
+            edge.className = 'edge';
+            edge.style.width = `${length}px`;
+            edge.style.left = `${x1}px`;
+            edge.style.top = `${y1}px`;
+            edge.style.transform = `rotate(${angle}deg)`;
+            edge.dataset.node1 = a;
+            edge.dataset.node2 = b;
+
+            return edge;
+        }
+
+        async function startDFS() {
+            const startNode = nodes[0].dataset.id;
+            const stack = [startNode];
+            const result = [];
+            const visitedNodes = new Set();
+
+            while (stack.length > 0) {
+                const current = stack.pop();
+                if (!visitedNodes.has(current)) {
+                    visitedNodes.add(current);
+                    result.push(current);
+                    const nodeElement = nodes.find(node => node.dataset.id === current);
+                    nodeElement.classList.add('visited');
+
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    // Add neighbors to stack
+                    const neighbors = [...graph[current]];
+
+                    for (const neighbor of neighbors) {
+                        if (!visitedNodes.has(neighbor)) {
+                            stack.push(neighbor);
+                        } else {
+                            const edge = edges.find(edge => 
+                                (edge.dataset.node1 === current && edge.dataset.node2 === neighbor) ||
+                                (edge.dataset.node1 === neighbor && edge.dataset.node2 === current)
+                            );
+                            if (edge) {
+                                edge.classList.add('revisited');
+                            }
+                        }
+                    }
+                }
+            }
+
+            output.innerHTML = `<strong>DFS Traversal:</strong> ${result.join(', ')}`;
+        }
+    </script>
+</body>
+</html>
